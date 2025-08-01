@@ -15,9 +15,9 @@ Web API service for image segmentation based on Grounded-SAM-2, supporting objec
 ├── grounded_sam_webapi_server.py    # Web API server
 ├── grounded_sam_webapi_client.py    # Python client SDK
 ├── segmentation.py                  # Core segmentation module
-├── deer.png                        # Test image, actually it is a eastern roe deer
 ├── README.md                       # Documentation
 ├── assets/                         # Reference images for testing
+│   ├── deer.png                    # Test image, actually it is a eastern roe deer
 │   ├── deer_mask.png               # Expected segmentation mask output
 │   └── deer_overlay.png            # Expected overlay visualization
 └── Grounded-SAM-2/                 # Grounded-SAM-2 repository (git clone)
