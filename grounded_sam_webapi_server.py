@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Grounded-SAM-2 based semantic segmentation Web API server
-Provides REST API interfaces for image segmentation and object detection
+Grounded-SAM-2 Web API Server with token authentication
 """
 
 import base64
 import io
 import json
+import os
 import traceback
 from typing import List, Dict, Optional, Tuple, Any
 import numpy as np
 from PIL import Image
 from flask import Flask, request, jsonify
+from functools import wraps
 import torch
 
 # Import segmentation module
@@ -21,6 +22,27 @@ app = Flask(__name__)
 
 # Global segmenter instance
 segmenter = None
+
+# API Token (set via environment variable or use default)
+API_TOKEN = os.environ.get('API_TOKEN', 'your-secure-token-here')
+
+def require_token(f):
+    """Token validation decorator"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'success': False, 'error': 'Missing Authorization header'}), 401
+        
+        # Support both "Bearer token" and "token" formats
+        if token.startswith('Bearer '):
+            token = token[7:]
+        
+        if token != API_TOKEN:
+            return jsonify({'success': False, 'error': 'Invalid token'}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 def init_segmenter():
     """Initialize segmenter"""
@@ -82,14 +104,37 @@ def boxes_to_list(boxes: torch.Tensor) -> List[List[float]]:
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'Grounded-SAM-2 Web API',
-        'segmenter_loaded': segmenter is not None
-    })
+    """Health check endpoint with optional token validation"""
+    # Check if token is provided for authenticated health check
+    token = request.headers.get('Authorization')
+    if token:
+        # Support both "Bearer token" and "token" formats
+        if token.startswith('Bearer '):
+            token = token[7:]
+        
+        if token != API_TOKEN:
+            return jsonify({
+                'status': 'healthy',
+                'service': 'Grounded-SAM-2 Web API',
+                'authenticated': False,
+                'error': 'Invalid token'
+            }), 401
+        
+        return jsonify({
+            'status': 'healthy',
+            'service': 'Grounded-SAM-2 Web API',
+            'authenticated': True,
+            'segmenter_loaded': segmenter is not None
+        })
+    else:
+        return jsonify({
+            'status': 'healthy',
+            'service': 'Grounded-SAM-2 Web API',
+            'authenticated': False
+        })
 
 @app.route('/segment', methods=['POST'])
+@require_token
 def segment_objects():
     """
     Object segmentation endpoint
@@ -200,6 +245,7 @@ def segment_objects():
         }), 500
 
 @app.route('/batch_segment', methods=['POST'])
+@require_token
 def batch_segment_objects():
     """
     Batch object segmentation endpoint
@@ -393,15 +439,17 @@ def batch_segment_objects():
 def run_server(host='0.0.0.0', port=5000, debug=False):
     """Start web server"""
     print("🚀 Starting Grounded-SAM-2 Web API server...")
+    print(f"🔑 API Token: {API_TOKEN}")
     
     # Initialize segmenter
     init_segmenter()
     
     print(f"🌐 Server address: http://{host}:{port}")
     print("📋 Available endpoints:")
-    print("  - GET  /health - Health check")
-    print("  - POST /segment - Single object segmentation")
-    print("  - POST /batch_segment - Batch object segmentation")
+    print("  - GET  /health - Health check (token optional)")
+    print("  - POST /segment - Single object segmentation (token required)")
+    print("  - POST /batch_segment - Batch object segmentation (token required)")
+    print("💡 Set API_TOKEN environment variable to change the default token")
     
     app.run(host=host, port=port, debug=debug)
 
@@ -413,7 +461,12 @@ if __name__ == "__main__":
     parser.add_argument('--host', default='0.0.0.0', help='Server host address')
     parser.add_argument('--port', type=int, default=5000, help='Server port')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--token', help='API token (overrides API_TOKEN env var)')
     
     args = parser.parse_args()
+    
+    # Override token if provided via command line
+    if args.token:
+        API_TOKEN = args.token
     
     run_server(host=args.host, port=args.port, debug=args.debug)

@@ -13,27 +13,32 @@ import requests
 import numpy as np
 import cv2
 from PIL import Image
-import matplotlib.pyplot as plt
 
 class GroundedSAMClient:
     """Grounded-SAM-2 Web API Client"""
     
-    def __init__(self, base_url="http://localhost:5000"):
+    def __init__(self, base_url="http://localhost:5000", token=None):
         """
         Initialize client
         
         Args:
             base_url: API server address
+            token: API token for authentication
         """
         self.base_url = base_url
-        health = self.health_check()  # Check server status
-        if health.get('error'):
-            raise ConnectionError("Unable to connect to Grounded-SAM-2 Web API server, please ensure server is running")
+        self.token = token or os.environ.get('API_TOKEN', 'your-secure-token-here')
+        self.headers = {'Authorization': f'Bearer {self.token}'}
+        
+        # Test connection and token validation
+        health = self.health_check()
+        if not health.get('authenticated'):
+            raise ConnectionError("Invalid token or unable to authenticate with server")
+        print(f"✅ Connected to server with valid token")
     
     def health_check(self):
-        """Health check"""
+        """Health check with token validation"""
         try:
-            response = requests.get(f"{self.base_url}/health", timeout=10)
+            response = requests.get(f"{self.base_url}/health", headers=self.headers, timeout=10)
             return response.json()
         except Exception as e:
             return {"error": str(e)}
@@ -91,6 +96,7 @@ class GroundedSAMClient:
             response = requests.post(
                 f"{self.base_url}/segment",
                 json=data,
+                headers=self.headers,
                 timeout=60
             )
             
@@ -138,6 +144,7 @@ class GroundedSAMClient:
             response = requests.post(
                 f"{self.base_url}/batch_segment",
                 json=data,
+                headers=self.headers,
                 timeout=60
             )
             
@@ -166,106 +173,6 @@ class GroundedSAMClient:
             
         except Exception as e:
             return {'success': False, 'error': str(e)}
-    
-    def visualize_results(self, image, result, save_path=None):
-        """
-        Visualize segmentation results
-        
-        Args:
-            image: Original image (numpy array)
-            result: Segmentation result
-            save_path: Save path (optional)
-        """
-        if isinstance(image, str):
-            image = np.array(Image.open(image))
-        
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        
-        # Display original image
-        axes[0].imshow(image)
-        axes[0].set_title('Original Image')
-        axes[0].axis('off')
-        
-        # Display bounding boxes
-        img_with_boxes = image.copy()
-        if result.get('success'):
-            bboxes = result.get('bboxes')
-            if bboxes:
-                if isinstance(bboxes, list):
-                    # Single object segmentation result
-                    for bbox in bboxes:
-                        x1, y1, x2, y2 = map(int, bbox)
-                        cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                elif isinstance(bboxes, dict):
-                    # Old batch format
-                    colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255)]
-                    color_idx = 0
-                    for obj_name, obj_bboxes in bboxes.items():
-                        color = colors[color_idx % len(colors)]
-                        for bbox in obj_bboxes:
-                            x1, y1, x2, y2 = map(int, bbox)
-                            cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), color, 2)
-                            cv2.putText(img_with_boxes, obj_name, (x1, y1-10), 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                        color_idx += 1
-            else:
-                # New batch format - each object is a key
-                colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255)]
-                color_idx = 0
-                for key, value in result.items():
-                    if key != 'success' and isinstance(value, dict) and value.get('success'):
-                        obj_bboxes = value.get('bboxes', [])
-                        color = colors[color_idx % len(colors)]
-                        for bbox in obj_bboxes:
-                            x1, y1, x2, y2 = map(int, bbox)
-                            cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), color, 2)
-                            cv2.putText(img_with_boxes, key, (x1, y1-10), 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                        color_idx += 1
-        
-        axes[1].imshow(img_with_boxes)
-        axes[1].set_title('Bounding Boxes')
-        axes[1].axis('off')
-        
-        # Display mask
-        if result.get('success') and result.get('masks_decoded'):
-            if isinstance(result['masks_decoded'], list) and len(result['masks_decoded']) > 0:
-                # Single object segmentation result
-                mask = result['masks_decoded'][0]
-                axes[2].imshow(mask, cmap='gray')
-                axes[2].set_title('Segmentation Mask')
-            elif isinstance(result['masks_decoded'], dict):
-                # Batch segmentation result, create combined visualization
-                if len(result['masks_decoded']) > 0:
-                    # Get image dimensions from first mask
-                    first_mask = list(result['masks_decoded'].values())[0]
-                    h, w = first_mask.shape
-                    combined_mask = np.zeros((h, w), dtype=np.uint8)
-                    
-                    # Combine all masks with different values
-                    mask_value = 50
-                    for obj_name, mask in result['masks_decoded'].items():
-                        combined_mask[mask > 0] = mask_value
-                        mask_value += 50
-                    
-                    axes[2].imshow(combined_mask, cmap='viridis')
-                    axes[2].set_title(f'Combined Masks ({len(result["masks_decoded"])} objects)')
-                else:
-                    axes[2].text(0.5, 0.5, 'No Masks', ha='center', va='center', transform=axes[2].transAxes)
-                    axes[2].set_title('No Masks Found')
-        else:
-            axes[2].text(0.5, 0.5, 'No Mask', ha='center', va='center', transform=axes[2].transAxes)
-            axes[2].set_title('No Results')
-        
-        axes[2].axis('off')
-        
-        plt.tight_layout()
-        
-        if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Visualization result saved to: {save_path}")
-        
-        plt.show()
 
 
 if __name__ == "__main__":
@@ -274,11 +181,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Grounded-SAM-2 Web API Client')
     parser.add_argument('--url', default='http://localhost:5000',
                         help='API server address')
+    parser.add_argument('--token', help='API token (overrides API_TOKEN env var)')
     
     args = parser.parse_args()
     
     # 1. Initialize client
-    client = GroundedSAMClient("http://localhost:5000")
+    client = GroundedSAMClient(args.url, token=args.token)
     
     print("🧪 Grounded-SAM-2 Web API Client Test")
     
@@ -302,9 +210,6 @@ if __name__ == "__main__":
         print(f"  - Generated {len(result.get('masks', []))} masks")
         print(f"  - Detection phrases: {result.get('phrases', [])}")
         print(f"  - Confidence scores: {result.get('scores', [])}")
-        
-        # Visualize results
-        # client.visualize_results(test_image, result, "single_result.png")
     else:
         print(f"  - Error: {result.get('error')}")
     
@@ -335,9 +240,6 @@ if __name__ == "__main__":
                         print(f"    - Phrases: {phrases}")
         
         print(f"  - Detected objects: {detected_objects}")
-        
-        # Visualize results
-        # client.visualize_results(test_image, batch_result, "batch_result.png")
     else:
         print(f"  - Error: {batch_result.get('error')}")
     
