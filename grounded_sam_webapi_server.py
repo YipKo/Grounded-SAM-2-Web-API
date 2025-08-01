@@ -322,110 +322,43 @@ def batch_segment_objects():
         if result is None:
             return jsonify({
                 'success': True,
-                'masks': {},
-                'bboxes': {},
-                'scores': {},
-                'phrases': {},
                 'message': 'No objects detected'
             })
         
-        # Process results
-        if isinstance(result, dict):
-            # Check if this is the new format with individual object information
-            if text_prompts and len(text_prompts) > 0:
-                first_prompt = text_prompts[0]
-                if first_prompt in result and isinstance(result[first_prompt], dict):
-                    # New format: individual object information - convert to desired format
-                    response_data: Dict[str, Any] = {'success': True}
-                    
-                    for obj_name in text_prompts:
-                        if obj_name in result:
-                            obj_info = result[obj_name]
-                            if isinstance(obj_info, dict):
-                                success = bool(obj_info.get("success", False))
-                                if success and "mask" in obj_info:
-                                    response_data[obj_name] = {
-                                        "success": True,
-                                        "masks": [image_to_base64(obj_info["mask"])],
-                                        "bboxes": [obj_info.get("bbox", [0, 0, 0, 0])],
-                                        "scores": [float(obj_info.get("score", 0.0))],
-                                        "phrases": [str(obj_info.get("phrase", ""))]
-                                    }
-                                else:
-                                    response_data[obj_name] = {
-                                        "success": False,
-                                        "masks": [],
-                                        "bboxes": [],
-                                        "scores": [],
-                                        "phrases": []
-                                    }
-                        else:
-                            response_data[obj_name] = {
-                                "success": False,
-                                "masks": [],
-                                "bboxes": [],
-                                "scores": [],
-                                "phrases": []
-                            }
-                    
-                    return jsonify(response_data)
-            
-            # Legacy format: convert old format to new format
-            response_data: Dict[str, Any] = {'success': True}
-            
-            if 'masks' in result and isinstance(result['masks'], dict):
-                # Old format compatibility
-                masks_dict = result['masks']
-                bboxes_dict = result.get('bboxes', {})
-                scores_dict = result.get('scores', {})
-                phrases_dict = result.get('phrases', {})
-                
-                for obj_name in text_prompts:
-                    if obj_name in masks_dict:
-                        bbox = bboxes_dict.get(obj_name, [0, 0, 0, 0]) if isinstance(bboxes_dict, dict) else [0, 0, 0, 0]
-                        score = scores_dict.get(obj_name, 0.0) if isinstance(scores_dict, dict) else 0.0
-                        phrase = phrases_dict.get(obj_name, "") if isinstance(phrases_dict, dict) else ""
-                        
-                        response_data[obj_name] = {
-                            "success": True,
-                            "masks": [image_to_base64(masks_dict[obj_name])],
-                            "bboxes": [bbox],
-                            "scores": [score],
-                            "phrases": [phrase]
-                        }
+        # Process results - simplified unified format handling
+        response_data: Dict[str, Any] = {'success': True}
+        
+        # Handle unified format from segmentation.py (always dict now)
+        for obj_name in text_prompts:
+            if obj_name in result and isinstance(result[obj_name], dict):
+                obj_info = result[obj_name]
+                success = bool(obj_info.get("success", False))
+                if success and "mask" in obj_info:
+                    response_data[obj_name] = {
+                        "success": True,
+                        "masks": [image_to_base64(obj_info["mask"])],
+                        "bboxes": [obj_info.get("bbox", [0, 0, 0, 0])],
+                        "scores": [float(obj_info.get("score", 0.0))],
+                        "phrases": [str(obj_info.get("phrase", ""))]
+                    }
+                else:
+                    response_data[obj_name] = {
+                        "success": False,
+                        "masks": [],
+                        "bboxes": [],
+                        "scores": [],
+                        "phrases": []
+                    }
             else:
-                # Dictionary of masks only
-                for obj_name in text_prompts:
-                    if obj_name in result and isinstance(result[obj_name], np.ndarray):
-                        response_data[obj_name] = {
-                            "success": True,
-                            "masks": [image_to_base64(result[obj_name])],
-                            "bboxes": [[0, 0, 0, 0]],
-                            "scores": [0.0],
-                            "phrases": [""]
-                        }
-            
-            return jsonify(response_data)
-        
-        # Single object (numpy array)
-        if isinstance(result, np.ndarray):
-            obj_name = text_prompts[0] if text_prompts else "object"
-            return jsonify({
-                'success': True,
-                obj_name: {
-                    "success": True,
-                    "masks": [image_to_base64(result)],
-                    "bboxes": [[0, 0, 0, 0]],
-                    "scores": [0.0],
-                    "phrases": [""]
+                response_data[obj_name] = {
+                    "success": False,
+                    "masks": [],
+                    "bboxes": [],
+                    "scores": [],
+                    "phrases": []
                 }
-            })
         
-        # Fallback for unexpected result type
-        return jsonify({
-            'success': False,
-            'error': 'Unexpected result format'
-        }), 500
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"Batch segmentation processing error: {e}")

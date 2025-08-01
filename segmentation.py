@@ -220,7 +220,7 @@ class GroundedSAM2Segmenter:
                              object_names: List[str],
                              image: Union[str, np.ndarray, Image.Image],
                              box_threshold: float = 0.35,
-                             text_threshold: float = 0.25) -> Union[np.ndarray, Dict[str, np.ndarray], Dict, None]:
+                             text_threshold: float = 0.25)  -> Union[Dict, None]:
         """
         Generate segmentation masks for object list
         
@@ -288,22 +288,17 @@ class GroundedSAM2Segmenter:
                     output_scores[obj_name] = 0.0
                     output_phrases[obj_name] = ""
             
-            # 4. Return results
-            if len(object_names) == 1:
-                # For single object, return just the mask for backward compatibility
-                return output_masks[object_names[0]]
-            else:
-                # For multiple objects, return complete information for each object
-                result = {}
-                for obj_name in object_names:
-                    result[obj_name] = {
-                        "success": obj_name in output_masks and output_masks[obj_name].max() > 0,
-                        "mask": output_masks[obj_name],
-                        "bbox": output_bboxes[obj_name],
-                        "score": output_scores[obj_name],
-                        "phrase": output_phrases[obj_name]
-                    }
-                return result
+            # 4. Return results - unified format for both single and multiple objects
+            result = {}
+            for obj_name in object_names:
+                result[obj_name] = {
+                    "success": obj_name in output_masks and output_masks[obj_name].max() > 0,
+                    "mask": output_masks[obj_name],
+                    "bbox": output_bboxes[obj_name],
+                    "score": output_scores[obj_name],
+                    "phrase": output_phrases[obj_name]
+                }
+            return result
                 
         except Exception as e:
             print(f"Error in get_masks_for_objects: {e}")
@@ -333,37 +328,40 @@ if __name__ == "__main__":
         )
         
         if result is not None:
-            # Since there's only one object, the result should be a single mask
-            if isinstance(result, dict):
-                mask = result["deer"]
+            # New unified format: always returns dict
+            if "deer" in result:
+                obj_info = result["deer"]
+                if obj_info.get("success"):
+                    mask = obj_info["mask"]
+                    print(f"Segmentation successful! Mask shape: {mask.shape}")
+                    print(f"Mask data type: {mask.dtype}")
+                    print(f"Mask value range: {mask.min()} - {mask.max()}")
+                    
+                    # Save segmentation result
+                    output_path = "deer_mask.png"
+                    mask_image = Image.fromarray(mask)
+                    mask_image.save(output_path)
+                    print(f"Segmentation mask saved to: {output_path}")
+                    
+                    # Create visualization image (overlay original image with mask)
+                    original_image = Image.open(deer_image_path).convert("RGB")
+                    original_array = np.array(original_image)
+                    
+                    # Create colored mask
+                    colored_mask = np.zeros_like(original_array)
+                    colored_mask[mask > 0] = [255, 0, 0]  # Red mask
+                    
+                    # Overlay images
+                    alpha = 0.5
+                    overlay = (original_array * (1 - alpha) + colored_mask * alpha).astype(np.uint8)
+                    overlay_image = Image.fromarray(overlay)
+                    overlay_path = "deer_overlay.png"
+                    overlay_image.save(overlay_path)
+                    print(f"Overlay image saved to: {overlay_path}")
+                else:
+                    print("Segmentation failed: deer not detected")
             else:
-                mask = result
-                
-            print(f"Segmentation successful! Mask shape: {mask.shape}")
-            print(f"Mask data type: {mask.dtype}")
-            print(f"Mask value range: {mask.min()} - {mask.max()}")
-            
-            # Save segmentation result
-            output_path = "deer_mask.png"
-            mask_image = Image.fromarray(mask)
-            mask_image.save(output_path)
-            print(f"Segmentation mask saved to: {output_path}")
-            
-            # Create visualization image (overlay original image with mask)
-            original_image = Image.open(deer_image_path).convert("RGB")
-            original_array = np.array(original_image)
-            
-            # Create colored mask
-            colored_mask = np.zeros_like(original_array)
-            colored_mask[mask > 0] = [255, 0, 0]  # Red mask
-            
-            # Overlay images
-            alpha = 0.5
-            overlay = (original_array * (1 - alpha) + colored_mask * alpha).astype(np.uint8)
-            overlay_image = Image.fromarray(overlay)
-            overlay_path = "deer_overlay.png"
-            overlay_image.save(overlay_path)
-            print(f"Overlay image saved to: {overlay_path}")
+                print("Segmentation failed: deer not found in results")
             
         else:
             print("Segmentation failed: deer not detected or error occurred during segmentation")
