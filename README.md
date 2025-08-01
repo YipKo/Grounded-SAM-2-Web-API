@@ -6,7 +6,6 @@ Web API service for image segmentation based on Grounded-SAM-2, supporting objec
 
 - 🚀 **REST API Interface** - Easy-to-use Web API
 - 🔐 **Token Authentication** - Secure API access control
-- 🎯 **Natural Language Prompts** - Describe objects with text
 - 🔄 **Batch Processing** - Segment multiple objects in one request
 - 📦 **Multiple Input Formats** - Support file paths, numpy arrays, PIL images
 
@@ -37,7 +36,7 @@ git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
 cd Grounded-SAM-2/
 
 # Install PyTorch and dependencies
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
 pip install -e .
 pip install --no-build-isolation -e grounding_dino
 pip install flask opencv-contrib-python-headless
@@ -50,9 +49,6 @@ cd gdino_checkpoints && bash download_ckpts.sh && cd ..
 ### 2. Test Installation
 
 ```bash
-# Clone this project
-cd .. && git clone <this-repo> && cd Grounded-SAM-2-Web-API
-
 # Test segmentation functionality
 python segmentation.py
 ```

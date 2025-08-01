@@ -305,7 +305,7 @@ class GroundedSAM2Segmenter:
             return None
 
 if __name__ == "__main__":
-    print("Starting deer segmentation test...")
+    print("Starting  segmentation test...")
     
     # Check if deer.png file exists
     deer_image_path = "assets/deer.png"
@@ -318,8 +318,7 @@ if __name__ == "__main__":
         print("Initializing GroundedSAM2Segmenter...")
         segmenter = GroundedSAM2Segmenter()
         
-        # Segment deer
-        print("Segmenting deer...")
+        # Segment
         result = segmenter.get_masks_for_objects(
             object_names=["deer"],
             image=deer_image_path,
@@ -333,9 +332,7 @@ if __name__ == "__main__":
                 obj_info = result["deer"]
                 if obj_info.get("success"):
                     mask = obj_info["mask"]
-                    print(f"Segmentation successful! Mask shape: {mask.shape}")
-                    print(f"Mask data type: {mask.dtype}")
-                    print(f"Mask value range: {mask.min()} - {mask.max()}")
+                    print(f"Segmentation successful! Mask shape: {mask.shape}, dtype: {mask.dtype}")
                     
                     # Save segmentation result
                     output_path = "deer_mask.png"
