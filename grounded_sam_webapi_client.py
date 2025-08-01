@@ -33,7 +33,6 @@ class GroundedSAMClient:
         health = self.health_check()
         if not health.get('authenticated'):
             raise ConnectionError("Invalid token or unable to authenticate with server")
-        print(f"✅ Connected to server with valid token")
     
     def health_check(self):
         """Health check with token validation"""

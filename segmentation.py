@@ -308,7 +308,7 @@ if __name__ == "__main__":
     print("Starting deer segmentation test...")
     
     # Check if deer.png file exists
-    deer_image_path = "deer.png"
+    deer_image_path = "assets/deer.png"
     if not os.path.exists(deer_image_path):
         print(f"Error: {deer_image_path} file not found")
         raise FileNotFoundError(f"{deer_image_path} file not found")
