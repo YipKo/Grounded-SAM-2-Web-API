@@ -86,11 +86,32 @@ result = client.segment_object(
     text_prompt="deer"
 )
 
+# Parse results
+if result["success"]:
+    masks = result["masks"]          # List of base64 encoded masks
+    bboxes = result["bboxes"]        # List of bounding boxes [[x1,y1,x2,y2]]
+    scores = result["scores"]        # List of confidence scores
+    phrases = result["phrases"]      # List of detected phrases
+    
+    print(f"Found {len(masks)} objects")
+    for i, (bbox, score, phrase) in enumerate(zip(bboxes, scores, phrases)):
+        print(f"Object {i}: {phrase} (score: {score:.3f}, bbox: {bbox})")
+
 # Batch segmentation
 batch_result = client.batch_segment_objects(
     image="deer.png", 
     text_prompts=["deer", "tree", "grass"]
 )
+
+# Parse batch results
+for prompt, result in batch_result.items():
+    if prompt == "success":  # Skip the overall success flag
+        continue
+    if result["success"]:
+        masks = result["masks"]
+        bboxes = result["bboxes"] 
+        scores = result["scores"]
+        print(f"'{prompt}': found {len(masks)} objects")
 ```
 
 ### cURL Commands
