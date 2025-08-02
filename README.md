@@ -31,6 +31,9 @@ Web API service for image segmentation based on Grounded-SAM-2, supporting objec
 ### 1. Install Dependencies
 
 ```bash
+# Create conda environment
+conda create -n "groundedsam-webapi" python=3.10 -y
+conda activate groundedsam-webapi
 # Clone Grounded-SAM-2
 git clone https://github.com/IDEA-Research/Grounded-SAM-2.git
 cd Grounded-SAM-2/
