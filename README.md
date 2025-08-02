@@ -202,6 +202,7 @@ We welcome contributions! Whether you're fixing bugs, adding features, or improv
 
 This project is provided "as is" without warranty of any kind. Use at your own risk.
 
+If you use this project in your research or applications, please mention the source: https://github.com/YipKo/Grounded-SAM-2-Web-API
 
 ## Acknowledgments
 
