@@ -191,7 +191,7 @@ if __name__ == "__main__":
     
     # 2. Read test image
     # Or use real image
-    test_image = "deer.png"
+    test_image = "assets/deer.png"
     test_image = cv2.imread(test_image)
     
     # 3. Single object segmentation test
