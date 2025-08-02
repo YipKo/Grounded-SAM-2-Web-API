@@ -66,9 +66,7 @@ class GroundedSAM2Segmenter:
     def _preprocess_caption(self, caption: str) -> str:
         """Preprocess text prompt"""
         result = caption.lower().strip()
-        if result.endswith("."):
-            return result
-        return result + "."
+        return result
     
     def detect_objects(self, 
                       image: Union[str, np.ndarray, Image.Image],
